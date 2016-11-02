@@ -1,0 +1,14 @@
+app/pi/
+conf/piServer.conf
+conf/imagerTemplate
+conf/multiImagerTemplate
+conf/local
+toolbox/mailsend.m
+scratch/
+toolbox/vis/dailymovie.pl
+toolbox/vis/dailymovie_helper.pl
+toolbox/java/PIJDBCDriver.jar
+toolbox/java/jdbc.jar
+toolbox/io/importRedlandsData.m
+toolbox/packaging/
+def_addpath_bu.m

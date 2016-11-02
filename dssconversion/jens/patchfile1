@@ -1,0 +1,29 @@
+diff --git a/charClean.m b/charClean.m
+index 5307e5d..e577391 100644
+--- a/charClean.m
++++ b/charClean.m
+@@ -35,8 +35,10 @@ if ~isempty(m)
+ 	else %length(m) == 1: single matrix (yahhooo)
+ 		if strcmp(m,' ')
+ 			return;
+-		else
++		elseif ~any(val=='|')
+ 			val = regexp(m{1}{1},'\s','split');
++		else
++			val = m{1}{1};
+ 		end
+ 	end
+ end
+diff --git a/dssget.m b/dssget.m
+index 8122fed..3863d67 100644
+--- a/dssget.m
++++ b/dssget.m
+@@ -24,7 +24,7 @@ if ~exist('customcommands','var')
+ end
+ cleanFlag_ = false;
+ 	
+-if(isstruct(dssckt) && isfield(dssckt,'circuit') && isa(dssckt.circuit,'dssckt'))
++if(isstruct(dssckt) && isfield(dssckt,'circuit') && isa(dssckt.circuit,'dsscircuit'))
+ 	pathtofile = dsswrite(dssckt,'tmp',1,'dssget_tmp',customcommands);
+ 	try
+ 		cleanFlag_ = cleanupFlag;

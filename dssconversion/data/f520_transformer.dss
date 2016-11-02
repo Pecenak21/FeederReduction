@@ -1,0 +1,17 @@
+New Reactor.MDV_SUB_1_HSB  bus1=SourceBus  bus2=MDV_SUB_1_HSB  r=0  x=(1.4255 1.0871 0.001 3 * - - 115 12.47 / sqr *)
+~ normamps=1000 emergamps=2000
+New Transformer.AVOCADO  phases=3  windings=2  buses=(MDV_SUB_1_HSB, 0520.1.2.3.0)  conns=(delta wye)  kvs=(115, 12.47)  kvas=(10000, 10000)  xhl=(1.0871 0.001 3 * - 10000 1000 / * 12.47 sqr / 100 *)  sub=y  subname=AVOCADO
+~ wdg=1  %r=(0.103 10000 1000 / * 12.47 sqr / 2 / 100 *)
+~ wdg=2  %r=(0.103 10000 1000 / * 12.47 sqr / 2 / 100 *)
+
+!New Transformer.520_838G Buses=[05201317 05201317A] Conns=[delta delta] Phases=3 kVAs=[2400  2400] kVs=[12  12] Wdg=2 tap=1.0875 NumTaps=32
+
+!New Transformer.520_1224G Buses=[05201350 05201350A] Conns=[delta delta] Phases=3 kVAs=[2400  2400] kVs=[12  12] Wdg=2 tap=1.025 NumTaps=32
+
+!New Transformer.520_1020G Buses=[05201438 05201438A] Conns=[delta delta] Phases=3 kVAs=[2400  2400] kVs=[12  12] Wdg=2 tap=1.05 NumTaps=32
+
+!New Transformer.520_1109G Buses=[05201949 05201949A] Conns=[delta delta] Phases=3 kVAs=[2400  2400] kVs=[12  12] Wdg=2 tap=1.0688 NumTaps=32
+
+!New Transformer.520_1225G Buses=[05202250 05202250A] Conns=[delta delta] Phases=3 kVAs=[2400  2400] kVs=[12  12] Wdg=2 tap=1.0562 NumTaps=32
+
+!New Transformer.520_1116G Buses=[05202315 05202315A] Conns=[delta delta] Phases=3 kVAs=[2400  2400] kVs=[12  12] Wdg=2 tap=1.0125 NumTaps=32
