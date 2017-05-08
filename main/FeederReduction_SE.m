@@ -37,9 +37,10 @@ function [circuit,outputdss] = FeederReduction_SE(Critical_buses,circuit, Measur
 
 %% TODO
 %1) Fix ES
-%2) Find error on 611
+%2) Fix capacitive load
 %3) Test All changes made
-
+%4) Figure out y-delta connections for transformers!!!!
+%5) Make transformers a line
 
 %Check both inputs are met
 if nargin<2
@@ -72,7 +73,7 @@ if isfield(circuit,'storage')
 	battFlag=1;
 end
 
-if ~isempty(Measurements)
+if nargin>2
 	MeasFlag=1;
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -186,7 +187,7 @@ fprintf('time elapsed %f',t_)
 fprintf('\nAdding lines: ')
 tic
 
-if ~exist(['c:\users\zactus\gridIntegration\NewRes\' circuit.circuit.Name '_Lines.mat'])
+if ~exist(['c:\users\zactus\FeederReductionRepo\' circuit.circuit.Name '_Lines.mat'])
 	%account for units, convert all to km
 	I_cap=zeros(length(YbusOrderVect),1);
 	jw=2*pi*60;
@@ -370,7 +371,7 @@ if isfield(circuit,'pvsystem')
 		
 		
 		for j=1:length(pv)
-			
+		
 			%Break up bus name to get bus and phases
 			PVname=regexp(char(pv.bus1(j)),'\.','split','once');
 			if length(PVname)>1
@@ -416,9 +417,6 @@ if isfield(circuit,'load')
 		
 		ld=circuit.load;
 		LOAD=zeros(length(YbusOrderVect),1);
-		for ii=1:length(YbusOrderVect)
-			LoadBusOrderVect{ii}=[char(YbusOrderVect{ii}) '.' num2str(YbusPhaseVect(ii))];
-		end
 		
 		for j=1:length(ld)
 			if isempty(regexp(ld(j).bus1,'\.','match'))
@@ -426,13 +424,13 @@ if isfield(circuit,'load')
 			elseif length(regexp(ld(j).bus1,'\.','match'))>1
 				name=regexp(ld(j).bus1,'\.','split');
 				for ii=2:length(name)
-					LOAD(find(strcmpi(LoadBusOrderVect,[name{1} '.' name{ii}])==1))=(ld(j).Kw/length(2:length(name))+i*ld(j).Kvar/length(2:length(name)));
+					LOAD(find(strcmpi(Ycomb,[name{1} '.' name{ii}])==1))=(ld(j).Kw/length(2:length(name))+i*ld(j).Kvar/length(2:length(name)));
 				end
 			else
-				LOAD(find(strcmpi(LoadBusOrderVect,ld(j).bus1)==1))=ld(j).Kw+i*ld(j).Kvar;
+				LOAD(find(strcmpi(Ycomb,ld(j).bus1)==1))=ld(j).Kw+i*ld(j).Kvar;
 			end
 		end
-		save(['c:\users\zactus\FeederReductionRepo\' circuit.circuit.Name '_Load.mat'],'LOAD','LoadBusOrderVect')
+		save(['c:\users\zactus\FeederReductionRepo\' circuit.circuit.Name '_Load.mat'],'LOAD','Ycomb')
 	else
 		load(['c:\users\zactus\FeederReductionRepo\' circuit.circuit.Name '_Load.mat'])
 	end
@@ -704,7 +702,7 @@ if isfield(circuit,'transformer')
 	trf_bus_ind(xfrmrm_delete,:)=[];
 	
 	%update everything
-	[InjP,InjQ,MeasV,LineP,LineQ,Ybus,C_MAT, Lines,buslist,I_cap,Batt,PV,Weights,LOAD,YbusOrderVect,YbusPhaseVect,Node_number,Critical_buses,Store,Critical_numbers]=Update_Matrices(Critical_buses,Store,YbusOrderVect,buslist,Ybus,C_MAT,Lines,1,I_cap,battFlag,Batt,pvFlag,PV,Weights,loadFlag,LOAD,YbusPhaseVect,InjP,InjQ,MeasV,LineP,LineQ);
+	[InjP,InjQ,MeasV,LineP,LineQ,Ybus,C_MAT, Lines,buslist,I_cap,Batt,PV,Weights,LOAD,YbusOrderVect,YbusPhaseVect,Node_number,Critical_buses,Store,Critical_numbers]=Update_Matrices(Critical_buses,Store,YbusOrderVect,buslist,Ybus,C_MAT,Lines,1,I_cap,battFlag,Batt,pvFlag,PV,Weights,loadFlag,MeasFlag,LOAD,YbusPhaseVect,InjP,InjQ,MeasV,LineP,LineQ);
 	
 	t_=toc;
 	fprintf('time elapsed %f',t_)
@@ -985,7 +983,7 @@ t_=toc;
 fprintf('time elapsed %f',t_)
 
 %update everything
-[InjP,InjQ,MeasV,LineP,LineQ,Ybus,C_MAT, Lines,buslist,I_cap,Batt,PV,Weights,LOAD,YbusOrderVect,YbusPhaseVect,Node_number,Critical_buses,Store,Critical_numbers]=Update_Matrices(Critical_buses,Store,YbusOrderVect,buslist,Ybus,C_MAT,Lines,1,I_cap,battFlag,Batt,pvFlag,PV,Weights,loadFlag,LOAD,YbusPhaseVect,InjP,InjQ,MeasV,LineP,LineQ);
+[InjP,InjQ,MeasV,LineP,LineQ,Ybus,C_MAT, Lines,buslist,I_cap,Batt,PV,Weights,LOAD,YbusOrderVect,YbusPhaseVect,Node_number,Critical_buses,Store,Critical_numbers]=Update_Matrices(Critical_buses,Store,YbusOrderVect,buslist,Ybus,C_MAT,Lines,1,I_cap,battFlag,Batt,pvFlag,PV,Weights,loadFlag,MeasFlag,LOAD,YbusPhaseVect,InjP,InjQ,MeasV,LineP,LineQ);
 
 % Get new topo
 tic
@@ -1247,7 +1245,7 @@ for j=1:length(Critical_numbers)
 end
 
 %update everything
-[InjP,InjQ,MeasV,LineP,LineQ,Ybus,C_MAT, Lines,buslist,I_cap,Batt,PV,Weights,LOAD,YbusOrderVect,YbusPhaseVect,Node_number,Critical_buses,Store,Critical_numbers]=Update_Matrices(Critical_buses,Store,YbusOrderVect,buslist,Ybus,C_MAT,Lines,1,I_cap,battFlag,Batt,pvFlag,PV,Weights,loadFlag,LOAD,YbusPhaseVect,InjP,InjQ,MeasV,LineP,LineQ);
+[InjP,InjQ,MeasV,LineP,LineQ,Ybus,C_MAT, Lines,buslist,I_cap,Batt,PV,Weights,LOAD,YbusOrderVect,YbusPhaseVect,Node_number,Critical_buses,Store,Critical_numbers]=Update_Matrices(Critical_buses,Store,YbusOrderVect,buslist,Ybus,C_MAT,Lines,1,I_cap,battFlag,Batt,pvFlag,PV,Weights,loadFlag,MeasFlag,LOAD,YbusPhaseVect,InjP,InjQ,MeasV,LineP,LineQ);
 
 Reduction(2)=length(Store);
 
@@ -1525,7 +1523,7 @@ for j=length(Critical_numbers):-1:2
 end
 
 %update everything
-[InjP,InjQ,MeasV,~,~,Ybus,C_MAT, Lines,buslist,I_cap,Batt,PV,Weights,LOAD,YbusOrderVect,YbusPhaseVect,Node_number,Critical_buses,Store,Critical_numbers]=Update_Matrices(Critical_buses,Store,YbusOrderVect,buslist,Ybus,C_MAT,Lines,[],I_cap,battFlag,Batt,pvFlag,PV,Weights,loadFlag,LOAD,YbusPhaseVect,InjP,InjQ,MeasV,LineP,LineQ);
+[InjP,InjQ,MeasV,~,~,Ybus,C_MAT, Lines,buslist,I_cap,Batt,PV,Weights,LOAD,YbusOrderVect,YbusPhaseVect,Node_number,Critical_buses,Store,Critical_numbers]=Update_Matrices(Critical_buses,Store,YbusOrderVect,buslist,Ybus,C_MAT,Lines,[],I_cap,battFlag,Batt,pvFlag,PV,Weights,loadFlag,MeasFlag,LOAD,YbusPhaseVect,InjP,InjQ,MeasV,LineP,LineQ);
 Reduction(3)=length(Store);
 
 t_=toc;
@@ -1560,6 +1558,14 @@ fprintf('time elapsed %f',t_)
 %We rewrite the PV by using the updated kW for the nodes only. The
 %remaining values are the same as default. Same for load.
 
+	trf_bus=strtok(reshape([circuit.transformer{:}.buses],2,[]),'\.'); trf_bus(1,:)=[];
+	[~,trf_bus_ind]=ismember(lower(trf_bus),lower(buslist));
+	[trf_bus_ind, IA]=unique(trf_bus_ind); trf_bus=trf_bus(IA);
+	trf_kV=cell2mat(reshape([circuit.transformer{:}.Kv],2,[])); trf_kV(1,:)=[];
+	trf_phase=[circuit.transformer{:}.Phases];
+	trf_phase(find(trf_phase==3))=4; trf_phase(find(trf_phase==1))=3; trf_phase(find(trf_phase==4))=1;
+	trf_kV=trf_kV.*sqrt(trf_phase);  trf_kV=trf_kV(IA);
+
 tic
 fprintf('\n\nFinally rewriting the circuit: ')
 if pvFlag
@@ -1584,19 +1590,17 @@ if pvFlag
 		circuit.pvsystem(ii).Pmpp=num2str(real(PV(NodeWithPV(ii))));
 		circuit.pvsystem(ii).pf=num2str(real(PV(NodeWithPV(ii)))./sqrt(real(PV(NodeWithPV(ii))).^2+imag(PV(NodeWithPV(ii))).^2));
 		circuit.pvsystem(ii).kVA=num2str(abs(PV(NodeWithPV(ii))));
+				
+		BusWithPV=find(ismember(buslist,lower(YbusOrderVect(NodeWithPV(ii)))));
+		MatchInd=find(ismember(trf_bus_ind,[cell2mat(generation(BusWithPV,4)); BusWithPV]));
+		circuit.pvsystem(ii).Kv=trf_kV(MatchInd(end))/sqrt(3);
 	end
 end
 %% Load
 %get PV kVa and pf
 if loadFlag
 	
-	trf_bus=strtok(reshape([circuit.transformer{:}.buses],2,[]),'\.'); trf_bus(1,:)=[];
-	[~,trf_bus_ind]=ismember(lower(trf_bus),lower(buslist));
-	[trf_bus_ind, IA]=unique(trf_bus_ind); trf_bus=trf_bus(IA);
-	trf_kV=cell2mat(reshape([circuit.transformer{:}.Kv],2,[])); trf_kV(1,:)=[];
-	trf_phase=[circuit.transformer{:}.Phases];
-	trf_phase(find(trf_phase==3))=4; trf_phase(find(trf_phase==1))=3; trf_phase(find(trf_phase==4))=1;
-	trf_kV=trf_kV.*sqrt(trf_phase);  trf_kV=trf_kV(IA);
+
 	
 	NodeWithLOAD=find(LOAD>0);
 	circuit.load=dssload;
@@ -1806,14 +1810,14 @@ for ii=1:length(Buses)
 
 end
 
-%update capcontrol to match updated line names
-if isfield(circuit,'capcontrol')
-	for ii=1:length(capConBuses1)
-		Numms1=find(ismember(lower({Buses{:,1}}),lower(char(capConBuses1{ii}))));
-		Numms2=find(ismember(lower(Buses(:,2)),lower(char(capConBuses2{ii}))));
-		circuit.capcontrol(ii).Element=['line.' circuit.line(Numms1(find(ismember(Numms1,Numms2)))).Name];
-	end
-end
+% % %update capcontrol to match updated line names
+% % if isfield(circuit,'capcontrol')
+% % 	for ii=1:length(capConBuses1)
+% % 		Numms1=find(ismember(lower({Buses{:,1}}),lower(char(capConBuses1{ii}))));
+% % 		Numms2=find(ismember(lower(Buses(:,2)),lower(char(capConBuses2{ii}))));
+% % 		circuit.capcontrol(ii).Element=['line.' circuit.line(Numms1(find(ismember(Numms1,Numms2)))).Name];
+% % 	end
+% % end
 
 %% 
 Ycomb=strcat(YbusOrderVect,'.', num2str(YbusPhaseVect));
@@ -1823,6 +1827,17 @@ if MeasFlag
 	k=length(LineP);
 	l=length(LineQ);
 	j=length(MeasV);
+	
+	%Get real and reactive to correct parts
+	Real_Q=real(InjQ(:,1));Imag_Q=imag(InjQ(:,1));
+	Real_P=real(InjP(:,1));Imag_P=imag(InjP(:,1));
+	
+	InjQ(:,1)=Real_Q+Imag_P;
+	InjP(:,1)=Real_P+Imag_Q;
+	
+	%Consider changing
+	InjQ(:,2)=real(InjQ(:,2));
+	InjP(:,2)=real(InjP(:,2));
 	
 	Measurements=num2cell(zeros(n+m+k+l+j,5));
 	
@@ -1849,7 +1864,9 @@ if MeasFlag
 	Measurements(n+1+m+k+l:n+m+k+l+j,5)=num2cell(MeasV(:,2));
 end
 
+if MeasFlag
 circuit.Measurements=Measurements;
+end
 
 %write weights
 if pvFlag
@@ -1857,9 +1874,13 @@ if pvFlag
 	circuit.PvbusMap=PVbusMap;
 	circuit.PvSize=PvSize;
 end
-
+circuit.Ybus=full(Ybus);
+circuit.Zbus=inv(full(Ybus));
+circuit.pv=PV;
+circuit.ld=LOAD;
 circuit.CriticalNode=Ycomb;
-circuit.PhaseReduction=Reduction;
+% circuit.PhaseReduction=Reduction;
+
 %% End
 t_=toc;
 fprintf('time elapsed %f \n',t_)
@@ -1931,7 +1952,7 @@ if length(adj_bus~=0)
 end
 end
 
-function [InjP,InjQ,MeasV,LineP,LineQ,Ybus,C_MAT, Lines,buslist,I_cap,Batt,PV,Weights,LOAD,YbusOrderVect,YbusPhaseVect,Node_number,Critical_buses,Store,Critical_numbers]=Update_Matrices(Critical_buses,Store,YbusOrderVect,buslist,Ybus,C_MAT,Lines,LinesUpdate,I_cap,battFlag,Batt,pvFlag,PV,Weights,loadFlag,LOAD,YbusPhaseVect,InjP,InjQ,MeasV,LineP,LineQ)
+function [InjP,InjQ,MeasV,LineP,LineQ,Ybus,C_MAT, Lines,buslist,I_cap,Batt,PV,Weights,LOAD,YbusOrderVect,YbusPhaseVect,Node_number,Critical_buses,Store,Critical_numbers]=Update_Matrices(Critical_buses,Store,YbusOrderVect,buslist,Ybus,C_MAT,Lines,LinesUpdate,I_cap,battFlag,Batt,pvFlag,PV,Weights,loadFlag,MeasFlag,LOAD,YbusPhaseVect,InjP,InjQ,MeasV,LineP,LineQ)
 
 %Update store to reflect Ybus order
 Store=unique(Store);
@@ -1946,6 +1967,7 @@ if ~isempty(LinesUpdate)
 	Lines(find(ismember(Lines(:,3),buslist(Store))),:)=[];
 end
 
+if MeasFlag
 %Reduce everything to collapse chitlins
 InjP(S,:)=[]; InjQ(S,:)=[]; MeasV(S,:)=[];
 
@@ -1953,7 +1975,7 @@ LineP(find(ismember(strtok(LineP(:,1),'.'),buslist(Store))),:)=[];
 LineP(find(ismember(strtok(LineP(:,2),'.'),buslist(Store))),:)=[];
 LineQ(find(ismember(strtok(LineQ(:,1),'.'),buslist(Store))),:)=[];
 LineQ(find(ismember(strtok(LineQ(:,2),'.'),buslist(Store))),:)=[];
-
+end
 I_cap(S)=[];
 if battFlag
 	Batt(S,:)=[];

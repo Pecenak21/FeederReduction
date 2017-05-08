@@ -22,6 +22,7 @@ if ~exist('conf','var') || isempty(conf)
     conf.ctrlType = 'none';
     conf.ctrlHorizon = 15; % in minutes 
     conf.ctrlTStep = 30; % in seconds
+	conf.timeStep = 30;
 else
     x = conf;
 end
@@ -34,7 +35,9 @@ end
 stopping=0;
 % add energy meter
 circuit = addEnergyMeter(circuit);
-p = dsswrite(circuit,[],0,[],[]);
+p = WriteDSS(circuit,[],0,'\tmp\newFR',[]);
+% p = WriteDSS(circuit,[],0,'\tmp\FR3',[]);
+
 % run simulation
 global o;
 o = actxserver('OpendssEngine.dss');
@@ -49,21 +52,26 @@ cDir = pwd;
 dssText.Command = ['Compile "' p '"'];
 cd(cDir);
 dssText.Command = 'Set controlmode = off';
+% dssText.Command = 'Set controlmode = static';
 dssText.Command = ['Set mode = ' mode ];
 dssText.Command = ['Set stepsize = ' num2str(conf.timeStep) 's'];
 dssText.Command = 'Set number = 1'; % number of time steps or solutions to run or the number of Monte Carlo cases to run.
-dssText.Command = 'SetLoadandGenkV';
+% dssText.Command = 'SetLoadandGenkV'; %corrects the load and gen kv to match the rating at the bus
 
 fprintf('%sRunning simulation...\n',indent)
 dssCircuit = o.ActiveCircuit;
 Dist = dssCircuit.AllNodeDistances; % Distance in km
 nodeName = dssCircuit.AllNodeNames;
+% Ybus=dssCircuit.SystemY;
+% ineven=2:2:length(Ybus); inodd=1:2:length(Ybus);
+% Ybus=Ybus(inodd)+1i*Ybus(ineven); Ybus=reshape(Ybus,sqrt(length(Ybus)),sqrt(length(Ybus)));
+Ycomb=dssCircuit.YNodeOrder;
 % dssEnergyMeters = dssCircuit.Meters;
 % Dist = dssCircuit.AllNodeDistances*(3280.8399); % conversion from km to kft (not sure why OpenDSS presents it in km, when the line lengths are clearly identified to be in kft)
 
 dssSolution = dssCircuit.Solution;
-dssSolution.MaxControlIterations=100;
-dssSolution.MaxIterations=100;
+dssSolution.MaxControlIterations=200;
+dssSolution.MaxIterations=500;
 dssSolution.InitSnap; % Initialize Snapshot solution
 dssSolution.dblHour = 0.0;
 
@@ -119,24 +127,31 @@ while dssSolution.dblHour <= simHours
         Volt_MaxMin(i,:) = [max(dssCircuit.AllBusVmagPu(dssCircuit.AllBusVmagPu < 4)) min(dssCircuit.AllBusVmagPu(dssCircuit.AllBusVmagPu > 0.3))];
         LossTotal(i,:) = dssCircuit.Losses/(1e+03); % MW/MVar
         Volt(i,:) = dssCircuit.AllBusVmagPu;
-        if exist('doPlotVoltProf','var') && doPlotVoltProf
+		Volt_notPu(i,:)=dssCircuit.AllBusVmag;
+		VCmplx=dssCircuit.AllBusVolt'; 
+		volt0=VCmplx(1:2:end)+1i*VCmplx(2:2:end);
+		Theta(i,:) = angle(volt0);
+		
+       if exist('doPlotVoltProf','var') && doPlotVoltProf
             plotVoltProf(Volt(i,:),Dist,t(i),i);
         end
         LossLine(i,:) = dssCircuit.LineLosses;
         TotalPower(i,:) = dssCircuit.TotalPower/(1e+03)*(-1);
-        %get power production of pvsystem
-%             if isfield(circuit, 'pvsystem')
-%                 pw = dssgetval(o,circuit.pvsystem,'powers');
-%                 pvV = dssgetval(o,circuit.pvsystem,'voltages');
-% 				PVpwr.kw(i,:) = (pw(:,1)+pw(:,3)+pw(:,5)+pw(:,7))';
-%                 PVpwr.kvar(i,:) = (pw(:,2)+pw(:,4)+pw(:,6)+pw(:,8))';
-% 				PVpwr.V(i,:) = (pvV(:,1)+pvV(:,3)+pvV(:,5)+pvV(:,7))';
-% 			end
+        % power production of pvsystem
+            if isfield(circuit, 'pvsystem')
+				pw = dssgetval(o,circuit.pvsystem,'powers');
+				pw(find(isnan(pw)))=0;
+                pvV = dssgetval(o,circuit.pvsystem,'voltages');
+				PVpwr.kw(i,:) = -sum(pw(:,1:2:end),2)';
+                PVpwr.kvar(i,:) = -sum(pw(:,2:2:end),2)';
+				PVpwr.V(i,:) = sum(pvV(:,1:2:end),2)';
+			end
 		% get voltage regulator tap positions from the transformer
         val = getval(o,circuit.transformer,'taps');
-        tPos = readTranxTap(val);
+%         tPos = readTranxTap(val);
         for j = 1:length(circuit.transformer)
-            tapPos.transformer(j).V(i,:) = tPos(j,:);
+			tapPos.transformer(j).V(i,:) = readTranxTap(val(j));
+%             tapPos.transformer(j).V(i,:) = tPos(j,:);
         end
         % get capacitor
         if isfield(circuit,'capacitor')
@@ -154,11 +169,11 @@ while dssSolution.dblHour <= simHours
         else
             converged(i) = 0;
 			stopping=1;
+			warning('%sALARM: Solution doesn''t converge! Trying to continue anyway! No data is recorded! Check your circuit again! Will try to continue.\n', indent);
 			break
-            warning('%sALARM: Solution doesn''t converge! Trying to continue anyway! No data is recorded! Check your circuit again! Will try to continue.\n', indent);
         end
 	end
-% 	iter=iter+1;
+	iter=iter+1;
 	else
 		break
 	end
@@ -202,9 +217,11 @@ if isfield(circuit,'capacitor')
 else
     data.totCapTapOpe = 0;
 end
-
+% dssText.Command= 'Show EventLog';
 data.nodeName = nodeName';
 data.Voltage = Volt;
+data.Volt_notPU = Volt_notPu;
+data.Angle = Theta;
 data.LineLoss = LossLine;
 data.TotalLoss = LossTotal;
 data.VoltMaxMin = Volt_MaxMin;
@@ -215,9 +232,13 @@ data.converged = converged;
 data.numConverged = sum(converged==1);
 data.numNotConverged = sum(converged==0);
 data.numMaxCtrlExceed = sum(converged==2);
+if isfield(circuit,'pvsystem')
 data.Pvdata=PVpwr;
+end
 data.time = t;
 data.timeSim=tElap;
+% data.Ybus=Ybus;
+data.YOrder=Ycomb;
 % if isfield(circuit,'pvsystem')
 %     data.PVpwr = PVpwr;
 % end

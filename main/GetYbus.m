@@ -1,4 +1,4 @@
-function [Ybus, YbusOrderVect, YbusPhaseVect, buslist] = GetYbus(circuit)
+function [YbusOrderVect, YbusPhaseVect, Ycomb, Ybus, buslist, dssCircuit]=getYbus(circuit)
 
 %Created by Zachary K. Pecenak on 6/18/2016
 
@@ -16,23 +16,29 @@ fprintf('\nGetting YBUS and buslist from OpenDSS: ')
 tic
 
 %load the circuit and generate the YBUS
-p = dsswrite(circuit_woPV,[],0,[]); o = actxserver('OpendssEngine.dss');
+p = WriteDSS(circuit,'test',0,pwd); o = actxserver('OpendssEngine.dss');
+	
 dssText = o.Text; dssText.Command = 'Clear'; cDir = pwd;
 dssText.Command = ['Compile "' p '"']; dssCircuit = o.ActiveCircuit;
-Ybus=dssCircuit.SystemY;
-
+	dssText.Command = 'Set controlmode = off';
+dssSolution = dssCircuit.Solution;
+dssSolution.MaxControlIterations=100;
+dssSolution.MaxIterations=100;
+dssSolution.InitSnap; % Initialize Snapshot solution
+dssSolution.dblHour = 0.0;
+dssSolution.Solve;
 %Convert the Ybus to a matrix
-ineven=2:2:length(Ybus); inodd=1:2:length(Ybus);  
+	
+Ybus=dssCircuit.SystemY;
+ineven=2:2:length(Ybus); inodd=1:2:length(Ybus);
 Ybus=Ybus(inodd)+1i*Ybus(ineven); Ybus=reshape(Ybus,sqrt(length(Ybus)),sqrt(length(Ybus)));
-Ybus=sparse(Ybus);
-%get buslist in order of Ybus and rearrange
-busnames=regexp(dssCircuit.YNodeOrder,'\.','split');
-YbusOrderVect=[busnames{:}]'; YbusOrderVect(find(cellfun('length',YbusOrderVect)==1))=[];
-YbusPhaseVect=[busnames{:}]'; YbusPhaseVect(find(cellfun('length',YbusPhaseVect)>1))=[]; YbusPhaseVect=str2double(YbusPhaseVect);
-% %Here we generate the list of node numbers in the order of the Ybus
-buslist=dssCircuit.AllBusNames;
-clear inodd ineven 
+	
+[YbusOrderVect, YbusPhaseVect]=strtok(dssCircuit.YNodeOrder,'\.');
+YbusPhaseVect=str2num(cell2mat(strrep(YbusPhaseVect,'.','')));
+Ycomb=dssCircuit.YNodeOrder;
+buslist=regexprep(dssCircuit.AllBUSNames,'-','_');
+% delete(o);
 
 t_=toc;
-fprintf('time elapsed %f',t_)
+fprintf('time elapsed %f\n',t_)
 end

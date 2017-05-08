@@ -81,7 +81,7 @@ switch lower(feederName)
 				for ii=1:length(critical_nodes)
 					critical_nodes(ii)=regexprep(critical_nodes(ii),'-','_');
 				end
-				[c] = FeederReduction(critical_nodes,c);
+				[c] = FeederReduction_SE(critical_nodes,c,[]);
 		end
 		case {'ieee13','13'}
 		excludeScalingUpIds = [];
@@ -96,18 +96,22 @@ switch lower(feederName)
 			case 'reduced'
 				[c,d,glc] = feederSetup( feederName, 'original');
 								
-				critical_nodes=c.buslist.id(round((length(c.buslist.id)-2)*rand(kk,1)+1));
-				critical_nodes=unique(critical_nodes);
-				while length(critical_nodes)<kk
-					cnode_tmp=c.buslist.id(round((length(c.buslist.id)-2)*rand(20,1)+1));
-					critical_nodes=[critical_nodes;cnode_tmp];
-					critical_nodes=unique(critical_nodes);
-				end	% 			   [c,~] = FeederReduction(critical_nodes,c);
-				
-				for ii=1:length(critical_nodes)
-					critical_nodes(ii)=regexprep(critical_nodes(ii),'-','_');
-				end
-				[c] = FeederReduction(critical_nodes,c);
+% 				critical_nodes=c.buslist.id(round((length(c.buslist.id)-2)*rand(kk,1)+1));
+% 				critical_nodes=unique(critical_nodes);
+% 				while length(critical_nodes)<kk
+% 					cnode_tmp=c.buslist.id(round((length(c.buslist.id)-2)*rand(20,1)+1));
+% 					critical_nodes=[critical_nodes;cnode_tmp];
+% 					critical_nodes=unique(critical_nodes);
+% 				end	% 			   [c,~] = FeederReduction(critical_nodes,c);
+% 				
+% 				for ii=1:length(critical_nodes)
+% 					critical_nodes(ii)=regexprep(critical_nodes(ii),'-','_');
+% 				end
+				critical_nodes=c.buslist.id([13,14]);
+
+% 				critical_nodes={'611','652','675','692'};
+				load('c:\users\zactus\FeederReductionRepo\StateEstimation\Z_New.mat')
+				[c] = FeederReduction_SE(critical_nodes,c,Z);
 		end
 	case {'clairemont','276'}
         %% clairemont feeder {'clairemont','276'}
@@ -1729,18 +1733,24 @@ switch lower(feederName)
 			case {'reduced'}
 				[ c, opt, d, glc] = feederSetup( feederName, 's1b_refined');
 
-				critical_nodes=c.buslist.id(round((length(c.buslist.id)-2)*rand(kk,1)+1));
-				critical_nodes=unique(critical_nodes);
-				while length(critical_nodes)<kk
-					cnode_tmp=c.buslist.id(round((length(c.buslist.id)-2)*rand(kk,1)+1));
-					critical_nodes=[critical_nodes;cnode_tmp];
-					critical_nodes=unique(critical_nodes);
-				end	
-				timeStop=tic;
-				[c] = FeederReduction(critical_nodes,c);
-				t=toc(timeStop);
-				c.SimTime=t;
+% 				critical_nodes=c.buslist.id(round((length(c.buslist.id)-2)*rand(kk,1)+1));
+% 				critical_nodes=unique(critical_nodes);
+% 				while length(critical_nodes)<kk
+% 					cnode_tmp=c.buslist.id(round((length(c.buslist.id)-2)*rand(kk,1)+1));
+% 					critical_nodes=[critical_nodes;cnode_tmp];
+% 					critical_nodes=unique(critical_nodes);
+% 				end	
+% 				timeStop=tic;
+% 				[c] = FeederReduction(critical_nodes,c);
+% 				t=toc(timeStop);
+% 				c.SimTime=t;
+criticalBuses=c.buslist.id([11,13,14]);
 
+for ii=1:length(criticalBuses)
+	criticalBuses(ii)=regexprep(criticalBuses(ii),'-','_');
+end
+
+[c] = FeederReduction_SE(criticalBuses,c);
 % 				critical_nodes=c.buslist.id(round(length(c.buslist.id)*rand(20,1)));
 % 				[c] = FeederReduction(critical_nodes,c);
 
